@@ -1,0 +1,35 @@
+{
+  "name": "quizgen",
+  "version": "1.0.0",
+  "description": "A comprehensive quiz generation application",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server/dist/index.js",
+    "server": "cd server && npm run dev",
+    "client": "cd client && npm start",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "install-all": "npm install && cd client && npm install && cd ../server && npm install",
+    "build": "cd client && npm run build && cd ../server && npm run build",
+    "test": "cd client && npm test && cd ../server && npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/antwonjones02/QuizGen.git"
+  },
+  "keywords": [
+    "quiz",
+    "education",
+    "ai",
+    "learning",
+    "assessment"
+  ],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/antwonjones02/QuizGen/issues"
+  },
+  "homepage": "https://github.com/antwonjones02/QuizGen#readme",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
