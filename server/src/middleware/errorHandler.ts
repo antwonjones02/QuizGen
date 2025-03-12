@@ -1,62 +1,75 @@
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger';
 
-interface AppError extends Error {
+interface ErrorResponse extends Error {
   statusCode?: number;
   code?: number;
+  errors?: any[];
 }
 
 export const errorHandler = (
-  err: AppError,
+  err: ErrorResponse,
   req: Request,
   res: Response,
   next: NextFunction
-): void => {
-  // Log the error
-  logger.error(`${err.name}: ${err.message}`, { 
-    stack: err.stack,
-    path: req.path,
-    method: req.method,
-  });
+) => {
+  let error = { ...err };
+  error.message = err.message;
 
-  // Default status code and message
-  let statusCode = err.statusCode || 500;
-  let message = err.message || 'Server Error';
-
-  // Handle Mongoose validation errors
-  if (err.name === 'ValidationError') {
-    statusCode = 400;
-    message = 'Validation Error';
+  // Log the error for server-side debugging
+  logger.error(`${err.name}: ${err.message}`);
+  if (process.env.NODE_ENV === 'development') {
+    logger.error(err.stack);
   }
 
-  // Handle Mongoose duplicate key errors
-  if (err.code === 11000) {
-    statusCode = 400;
-    message = 'Duplicate field value entered';
-  }
-
-  // Handle Mongoose cast errors
+  // Mongoose bad ObjectId
   if (err.name === 'CastError') {
-    statusCode = 400;
-    message = 'Resource not found';
+    const message = 'Resource not found';
+    error = new Error(message) as ErrorResponse;
+    error.statusCode = 404;
   }
 
-  // Handle JWT errors
+  // Mongoose duplicate key
+  if (err.code === 11000) {
+    const message = 'Duplicate field value entered';
+    error = new Error(message) as ErrorResponse;
+    error.statusCode = 400;
+  }
+
+  // Mongoose validation error
+  if (err.name === 'ValidationError') {
+    const message = Object.values(err.errors || {})
+      .map((val: any) => val.message)
+      .join(', ');
+    error = new Error(message) as ErrorResponse;
+    error.statusCode = 400;
+  }
+
+  // Express validator errors
+  if (err.name === 'ExpressValidationError') {
+    const message = 'Validation failed';
+    error = new Error(message) as ErrorResponse;
+    error.statusCode = 400;
+    error.errors = err.errors;
+  }
+
+  // JWT errors
   if (err.name === 'JsonWebTokenError') {
-    statusCode = 401;
-    message = 'Invalid token';
+    const message = 'Invalid token';
+    error = new Error(message) as ErrorResponse;
+    error.statusCode = 401;
   }
 
-  // Handle JWT expiration
   if (err.name === 'TokenExpiredError') {
-    statusCode = 401;
-    message = 'Token expired';
+    const message = 'Token expired';
+    error = new Error(message) as ErrorResponse;
+    error.statusCode = 401;
   }
 
-  // Send the error response
-  res.status(statusCode).json({
+  res.status(error.statusCode || 500).json({
     success: false,
-    error: message,
-    ...(process.env.NODE_ENV === 'development' ? { stack: err.stack } : {}),
+    error: error.message || 'Server Error',
+    ...(error.errors && { errors: error.errors }),
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 };
